@@ -2,17 +2,11 @@
 
 ![CI](https://github.com/skylerblue333/Py-Web-Scraper/workflows/CI/badge.svg)
 
-Production-ready backend service for scraper operations.
-
-## Architecture
-- **API Framework**: FastAPI
-- **Concurrency**: Asyncio event loop
-- **Testing**: Pytest with 100% coverage
-- **Deployment**: Docker containerized
+Web scraping orchestration and scheduling API built with FastAPI.
 
 ## Quick Start
 ```bash
 pip install -r requirements.txt
-pytest tests/ -v
+pytest tests/
 uvicorn src.main:app --reload
 ```
