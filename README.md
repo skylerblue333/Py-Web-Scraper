@@ -1,20 +1,28 @@
 # Py-Web-Scraper
 
-## Overview
-Advanced web scraper with robust error handling.
-
-Developed as part of my portfolio showcasing 5 years of software engineering experience. This project demonstrates clean architecture, proper error handling, and production-ready Python patterns.
-
-## Quick Start (1-Click Build)
-
-```bash
-git clone https://github.com/skylerblue333/Py-Web-Scraper.git
-cd Py-Web-Scraper
-pip install -r requirements.txt
-python main.py
-```
+A production-ready web scraper microservice built with FastAPI.
 
 ## Features
-- Clean, maintainable codebase
-- Proper logging and error handling
-- Zero complex configuration required
+- Extracts page title and all external links from any URL
+- REST API with `/scrape?url=<url>` endpoint
+- Fully tested with pytest
+
+## Quick Start
+
+```bash
+pip install -r requirements.txt
+uvicorn src.main:app --reload
+```
+
+## Docker
+
+```bash
+docker build -t py-web-scraper .
+docker run -p 8000:8000 py-web-scraper
+```
+
+## Test
+
+```bash
+pytest tests/ -v
+```
