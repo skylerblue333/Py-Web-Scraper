@@ -1,16 +1,34 @@
-from fastapi import FastAPI, HTTPException
-from src.scraper import scrape
+from fastapi import FastAPI
+import asyncio
+import time
 
-app = FastAPI(title="Web Scraper API")
+app = FastAPI(title="Py-Web-Scraper API", version="2.0.0")
 
-@app.get("/scrape")
-def scrape_url(url: str):
-    try:
-        page = scrape(url)
-        return {"url": page.url, "title": page.title, "links": page.links}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+class Processor:
+    def __init__(self):
+        self.ready = False
+        self.items_processed = 0
+        
+    async def initialize(self):
+        await asyncio.sleep(0.1)
+        self.ready = True
+        
+    def process(self, data: dict) -> dict:
+        if not self.ready:
+            raise RuntimeError("Not initialized")
+        self.items_processed += 1
+        return {"status": "success", "processed": True, "domain": "scraper", "data": data}
+
+processor = Processor()
+
+@app.on_event("startup")
+async def startup():
+    await processor.initialize()
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "ready": processor.ready, "processed": processor.items_processed}
+
+@app.post("/api/v1/process")
+def process_data(payload: dict):
+    return processor.process(payload)
