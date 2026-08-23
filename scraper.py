@@ -15,5 +15,6 @@ class GenericSpider(scrapy.Spider):
         }
 
 if __name__ == "__main__":
-    CrawlerProcess().crawl(GenericSpider)
-    CrawlerProcess().start()
+    process = CrawlerProcess()
+    process.crawl(GenericSpider)
+    process.start()
