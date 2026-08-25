@@ -1,27 +1,42 @@
-# Contributing to SKYCOIN4444
+# Contributing to Sky Fetch Planner
 
-## Development Setup
+## Development setup
 
 ```bash
-npm install
-npm run build
-npm test
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install pip-audit
 ```
 
-## Code Style
+## Verification
 
-- Use TypeScript strict mode
-- Follow ESLint rules
-- Format with Prettier
-- Write meaningful commit messages
+```bash
+python -m compileall -q src tests
+ruff check src tests
+pytest -q
+pip-audit -r requirements.txt
+docker build -t sky-fetch-planner .
+docker run --rm --entrypoint=id sky-fetch-planner -u
+```
 
-## Pull Requests
+## Scope and security
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests and linting
-4. Submit PR with description
+- Keep the component focused on validating and registering fetch plans; it does not execute network requests.
+- Add tests for URL-policy and capacity changes.
+- Do not add behavior intended to bypass authentication, robots/access controls, paywalls, or authorization boundaries.
+- Any future network executor must independently validate resolved destinations and redirects and use network-layer egress controls.
+- Keep product maturity claims aligned with verified implementation and CI evidence.
+
+## Pull requests
+
+1. Create a focused branch.
+2. Make the smallest coherent change.
+3. Run the verification commands above.
+4. Document changes to URL/network security boundaries.
+5. Open a pull request with a truthful maturity status.
 
 ## License
 
-MIT
+See `LICENSE`.
