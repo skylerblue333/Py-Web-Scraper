@@ -1,44 +1,57 @@
-<!-- PORTFOLIO PROJECT PROFILE: maintained by the repository owner -->
+# Sky Fetch Planner — Python Engineering Beta
 
-## Project profile and code-audit snapshot
+Sky Fetch Planner is a small FastAPI service for validating and registering bounded web-fetch plans. It is intentionally a **planning and policy component**, not a crawler executor.
 
-**What this is:** **Py-Web-Scraper** is a public repository described as: “Advanced web scraper with robust error handling. #SkyCoin4444 #AI #Blockchain #DevOps #Innovation” Its dominant language signals are **Python (4 files)**.
+## Status
 
-**Why it has value:** Its value is best understood through the implementation evidence currently present in the repository: **18 tracked files** were observed in the shallow audit, with the source structure and existing documentation providing the project’s specific context. This README does not treat a prototype, experiment, or archive as a production system without supporting evidence.
+**Engineering beta.** The service accepts HTTPS targets, rejects embedded credentials, localhost, and non-global IP literals, optionally enforces a hostname allowlist, caps selector and in-memory plan sizes, and provides health/readiness endpoints, tests, dependency auditing, and non-root container verification.
 
-**Implementation evidence:** 2 test-related file(s) detected; 2 dependency or package manifest(s) detected; 2 build/CI/infrastructure signal(s) detected; and 3 documentation or governance file(s) detected. Test filenames observed include `tests/__init__.py`, `tests/test_main.py`. Dependency or package files include `package.json`, `requirements.txt`. Build, CI, or infrastructure signals include `Dockerfile`, `.github/workflows/ci.yml`.
+It does **not** perform network requests, execute JavaScript, bypass robots/access controls, store scraped content, or claim distributed crawling, durable scheduling, HA, or production deployment.
 
-**Current status:** The repository is tracked on the `main` branch. The existing source tree, configuration, tests, workflows, and documentation remain authoritative for supported behavior and maturity. A code audit is not a production-readiness certification, and the presence of a test or workflow file does not establish that all checks pass.
+## API
 
-**Relationship to the wider portfolio:** This repository is one focused component of the broader Skyler Blue Spillers portfolio across AI, software engineering, cloud and DevOps, cybersecurity, blockchain, finance, education, social systems, and creative work. It may provide a service boundary, implementation pattern, experiment, archive, or reusable idea for related repositories. Treat repositories as technical dependencies only where documented interfaces and verified project requirements support that relationship.
+- `GET /healthz` — process liveness.
+- `GET /readyz` — reports in-memory planning capacity.
+- `POST /v1/plans` — validate and register `{ "url": "https://example.com/docs", "selector": "main h1" }`.
+- `GET /v1/plans/{id}` — retrieve a registered plan.
 
-**Quality and security note:** No obvious secret-like pattern was detected by the limited static scan; this is not a substitute for a security audit. No TODO/FIXME marker was detected in the scanned text files.
+Set `SKY_FETCH_ALLOW_HOSTS=docs.example.com,status.example.com` to restrict accepted plans to an explicit hostname set. An empty value allows any hostname that passes the local URL policy; this still does not trigger a network request.
 
----
+## Run locally
 
-# Py Web Scraper
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn src.main:app --host 127.0.0.1 --port 8000
+```
 
-![GitHub stars](https://img.shields.io/github/stars/skylerblue333/Py-Web-Scraper?style=flat-square)
-![GitHub license](https://img.shields.io/github/license/skylerblue333/Py-Web-Scraper?style=flat-square)
+## Verify
 
-## 🌟 Overview
-**Py-Web-Scraper** is a professional-grade project within the **SkyCoin4444** ecosystem. It focuses on delivering high-value solutions in the domain of **Python**.
+```bash
+pip install pip-audit
+python -m compileall -q src tests
+ruff check src tests
+pytest -q
+pip-audit -r requirements.txt
+docker build -t sky-fetch-planner .
+docker run --rm --entrypoint=id sky-fetch-planner -u
+```
 
-## 🚀 Key Features
-- **Scalable Architecture**: Designed for enterprise-level growth and performance.
-- **Modern Standards**: Implements best practices for clean code and maintainability.
-- **Robust Integration**: Built to work seamlessly within modern cloud-native environments.
+The container is expected to run as UID `10001`. CI also starts the container and verifies `/healthz`.
 
-## 🛠️ Technology Stack
-- **Primary Domain**: Python
-- **Ecosystem**: SkyCoin4444 Digital Platform
+## Architecture
 
-## 📂 Structure
-The project is organized into a modular structure to ensure clarity and ease of development.
+`src/main.py` is the canonical service. Plans are held in a bounded in-memory `OrderedDict` and disappear when the process exits. URL validation is a planning-time policy only. If a future executor is added, it must perform fresh DNS/IP checks at connection time, enforce redirect policy, respect applicable site access rules, and use network-layer egress controls rather than assuming this planner alone prevents SSRF.
 
-## 👨‍💻 Author
-**Skyler Blue Spillers**
-*Professional Chess Player & Software Engineer*
+## SKYCOIN4444 integration
 
----
-*Powered by SkyCoin4444*
+Ecosystem services can use this component to validate and persist short-lived fetch intentions before handing approved plans to a separate controlled worker. Keeping planning and execution separate provides a stable interface without implying unrestricted scraping capability.
+
+## Security and operational boundaries
+
+The planner does not authenticate callers, provide tenant isolation, rate-limit requests, resolve DNS, verify redirects, enforce robots.txt, execute fetches, or provide durable storage. Do not treat planning-time URL checks as a complete SSRF defense for a future network executor.
+
+## License
+
+See `LICENSE`.
