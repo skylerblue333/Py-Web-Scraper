@@ -29,6 +29,7 @@ uvicorn src.main:app --host 127.0.0.1 --port 8000
 ## Verify
 
 ```bash
+pip install pip-audit
 python -m compileall -q src tests
 ruff check src tests
 pytest -q
