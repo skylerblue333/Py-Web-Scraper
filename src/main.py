@@ -1,5 +1,7 @@
 import ipaddress
 import os
+import socket
+import threading
 from collections import OrderedDict
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -40,6 +42,7 @@ class FetchPlan(BaseModel):
 
 
 plans: OrderedDict[str, FetchPlan] = OrderedDict()
+plans_lock = threading.Lock()
 
 
 def _canonical_public_https_url(raw_url: str) -> tuple[str, str]:
@@ -48,6 +51,11 @@ def _canonical_public_https_url(raw_url: str) -> tuple[str, str]:
         raise ValueError("only https URLs are accepted")
     if not parsed.hostname or parsed.username or parsed.password:
         raise ValueError("URL must contain a hostname and no embedded credentials")
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("URL port is invalid") from error
+
     host = parsed.hostname.rstrip(".").lower()
     if not host:
         raise ValueError("URL hostname cannot be empty")
@@ -55,13 +63,22 @@ def _canonical_public_https_url(raw_url: str) -> tuple[str, str]:
         address = ipaddress.ip_address(host)
     except ValueError:
         address = None
+        try:
+            socket.inet_aton(host)
+        except OSError:
+            pass
+        else:
+            raise ValueError("non-canonical numeric IPv4 hosts are not accepted")
     if address is not None and not address.is_global:
         raise ValueError("private, loopback, link-local, and reserved IPs are not accepted")
     if host == "localhost" or host.endswith(".localhost"):
         raise ValueError("localhost is not accepted")
     if ALLOW_HOSTS and host not in ALLOW_HOSTS:
         raise ValueError("host is not in SKY_FETCH_ALLOW_HOSTS")
-    canonical = urlunsplit(("https", parsed.netloc.lower(), parsed.path or "/", parsed.query, ""))
+
+    host_for_netloc = f"[{host}]" if ":" in host else host
+    netloc = f"{host_for_netloc}:{port}" if port is not None else host_for_netloc
+    canonical = urlunsplit(("https", netloc, parsed.path or "/", parsed.query, ""))
     return canonical, host
 
 
@@ -72,13 +89,13 @@ def healthz() -> dict[str, str]:
 
 @app.get("/readyz")
 def readyz() -> dict[str, object]:
-    return {"status": "ready", "capacity": MAX_JOBS, "planned": len(plans)}
+    with plans_lock:
+        planned = len(plans)
+    return {"status": "ready", "capacity": MAX_JOBS, "planned": planned}
 
 
 @app.post("/v1/plans", response_model=FetchPlan, status_code=201)
 def create_plan(request: FetchPlanRequest) -> FetchPlan:
-    if len(plans) >= MAX_JOBS:
-        raise HTTPException(status_code=503, detail="in-memory plan capacity reached")
     try:
         url, host = _canonical_public_https_url(request.url)
     except ValueError as error:
@@ -89,13 +106,17 @@ def create_plan(request: FetchPlanRequest) -> FetchPlan:
         selector=request.selector,
         host=host,
     )
-    plans[plan.id] = plan
+    with plans_lock:
+        if len(plans) >= MAX_JOBS:
+            raise HTTPException(status_code=503, detail="in-memory plan capacity reached")
+        plans[plan.id] = plan
     return plan
 
 
 @app.get("/v1/plans/{plan_id}", response_model=FetchPlan)
 def get_plan(plan_id: str) -> FetchPlan:
-    plan = plans.get(plan_id)
+    with plans_lock:
+        plan = plans.get(plan_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="plan not found")
     return plan
