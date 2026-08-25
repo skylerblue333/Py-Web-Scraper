@@ -6,7 +6,8 @@ client = TestClient(service.app)
 
 
 def setup_function():
-    service.plans.clear()
+    with service.plans_lock:
+        service.plans.clear()
 
 
 def test_health_and_readiness():
@@ -31,12 +32,17 @@ def test_create_and_retrieve_plan():
     assert fetched.json() == plan
 
 
-def test_rejects_unsafe_urls_and_blank_selectors():
+def test_rejects_unsafe_urls_invalid_ports_and_blank_selectors():
     for url in [
         "http://example.com",
         "https://localhost/x",
         "https://127.0.0.1/x",
+        "https://127.1/x",
+        "https://2130706433/x",
+        "https://0x7f000001/x",
         "https://user:secret@example.com/x",
+        "https://example.com:bad/x",
+        "https://example.com:99999/x",
     ]:
         response = client.post("/v1/plans", json={"url": url, "selector": "h1"})
         assert response.status_code == 422
